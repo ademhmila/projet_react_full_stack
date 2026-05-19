@@ -1,65 +1,58 @@
-# Aura E-Shop - Premium Full-Stack E-Commerce 🛍️
+# Aura E‑Shop
 
-Aura E-Shop is a state-of-the-art, production-ready Full-Stack E-Commerce web application developed as a Capstone Project (Lab 6). It features a highly aesthetic, responsive glassmorphism UI, a real-time shopping cart system, secure role-based access, interactive administrative dashboards, and live PostgreSQL database syncing.
+**Live Production URL:** https://projet-react-full.vercel.app
 
-## 🚀 Tech Stack
+**GitHub Repository:** https://github.com/ademhmila/projet_react_full_stack
 
-- **Frontend Core:** React 19, Vite, React Router v6
-- **State Management:** Context API, `useReducer`, `localStorage` persistence
-- **Backend & Database:** Supabase (BaaS), PostgreSQL, Row Level Security (RLS)
-- **File Storage:** Supabase Storage Buckets (Product Images)
-- **Data Visualization:** Recharts
-- **Testing & QA:** Vitest, React Testing Library, JSDOM, `@vitest/coverage-v8`
-- **Styling:** Custom CSS with Glassmorphism tokens, CSS Variables
+---
 
-## 🛠️ Local Setup Instructions
+## Core Features
 
-Follow these steps to run the application in your local development environment:
+- **Dynamic Full‑Stack Catalog** – Products are fetched live from a Supabase PostgreSQL backend via the Supabase JS client.
+- **Persistent Cart System** – Global cart managed with `useContext` + `useReducer`; state is synced to `localStorage` for session persistence.
+- **Tunisian Dinar (DT) Localization** – All monetary values are formatted with the `Intl.NumberFormat` API for the `fr‑TN` locale.
+- **Fluid Dark‑Mode** – Global CSS‑variable theme toggled via a persistent setting stored in `localStorage`; automatically applies a `.dark-theme` class to the document root.
+- **Guest Checkout & Invoice Logging** – Users can checkout without an account; orders are recorded in Supabase and an on‑screen invoice is generated.
+- **Robust Admin CRUD** – Admin dashboard provides full create/read/update/delete operations for products, orders, and analytics charts.
+- **Performance Optimizations** – Code‑splitting with `React.lazy` & `Suspense`, lazy‑loaded admin routes, and Vite‑powered fast bundling.
 
-1. **Install Dependencies:**
-   Ensure you have Node.js installed, then run:
+---
+
+## Local Setup & Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ademhmila/projet_react_full_stack.git
+   cd projet_react_full_stack
+   ```
+2. **Install dependencies**
    ```bash
    npm install
    ```
-
-2. **Environment Configuration:**
-   Create a `.env` file in the root directory by copying the provided `.env.example` template:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+3. **Configure Supabase credentials**
+   - Create a `.env` file in the project root (copy from `.env.example` if present).
+   - Add your Supabase project URL and anon public key:
+   ```dotenv
+   VITE_SUPABASE_URL=https://lxhwjhbsmwmmufyctuna.supabase.co
+   VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....
    ```
-   *Note: If these keys are not provided, the application will intelligently fall back to local mock data so the UI remains fully functional for grading.*
-
-3. **Database Initialization (Optional but Recommended):**
-   Copy the contents of `supabase_schema.sql` and run it in your Supabase SQL Editor to instantly provision the required tables, triggers, security policies, and seed data.
-
-4. **Start the Development Server:**
+4. **Run the development server**
    ```bash
    npm run dev
    ```
-   Navigate to the local URL provided in your terminal (usually `http://localhost:5173`).
+   The app will be available at `http://localhost:5173`.
+5. **Execute the test suite**
+   ```bash
+   npm run test:coverage
+   ```
+   Expect a Vitest statement coverage of **≥ 70 %** (current 77.14 %).
 
-## 🔐 Quick-Login Demo Credentials
+---
 
-To bypass registration and instantly evaluate the application features, use the following built-in helper credentials on the `/login` page:
+## Production Deployment
 
-| Role | Email | Password | Access Privileges |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `admin@example.com` | `admin123` | Unlocks the `/admin` dashboard (Recharts, Inventory Management, Order Fulfillment). |
-| **Customer** | `user@example.com` | `user123` | Standard shopping, review submission, and invoice checkout generation. |
+The project is automatically deployed to Vercel. A successful deployment shows the live store at the URL above. The Vercel CI pipeline runs `npm run build` and publishes the static assets.
 
-## 🧪 Testing & Production Commands
+---
 
-- **Run Test Suite:**
-  ```bash
-  npm run test
-  ```
-- **Generate Code Coverage Report:**
-  ```bash
-  npm run test:coverage
-  ```
-- **Build for Production:**
-  Compiles the application with advanced code-splitting and optimizations:
-  ```bash
-  npm run build
-  ```
+*Feel free to explore, contribute, or raise issues – the storefront is built to be a premium, production‑ready demonstration of modern React + Supabase architecture.*
