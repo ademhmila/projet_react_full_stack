@@ -15,40 +15,6 @@ import {
   Cell 
 } from 'recharts';
 import { supabase } from '../api/supabaseClient';
-import { MOCK_PRODUCTS } from './Home';
-
-// 1. Initial Local Mocks for fallback
-const initialRevenueData = [
-  { month: 'Jan', revenue: 18500 },
-  { month: 'Feb', revenue: 22400 },
-  { month: 'Mar', revenue: 29800 },
-  { month: 'Apr', revenue: 26000 },
-  { month: 'May', revenue: 38500 },
-  { month: 'Jun', revenue: 42000 }
-];
-
-const initialSalesByProductData = [
-  { name: 'Headphones', sold: 120 },
-  { name: 'Smartwatch', sold: 85 },
-  { name: 'VR Headset', sold: 42 },
-  { name: 'Speaker', sold: 160 },
-  { name: 'Keyboard', sold: 95 },
-  { name: 'Fitness Band', sold: 70 }
-];
-
-const initialSatisfactionData = [
-  { rating: '5 Stars', count: 65, color: '#10b981' },
-  { rating: '4 Stars', count: 20, color: '#0ea5e9' },
-  { rating: '3 Stars', count: 10, color: '#f59e0b' },
-  { rating: '2 Stars', count: 3, color: '#ec4899' },
-  { rating: '1 Star', count: 2, color: '#ef4444' }
-];
-
-const INITIAL_ORDERS = [
-  { id: 'ORD-894273', client: 'Alice Jenkins', date: '2026-05-18', items: '1x Headphones, 2x Smartwatch', total: 629.97, status: 'pending' },
-  { id: 'ORD-128472', client: 'Michael Chang', date: '2026-05-17', items: '1x VR Headset, 1x Keyboard', total: 629.98, status: 'confirmed' },
-  { id: 'ORD-984261', client: 'Amara Lopez', date: '2026-05-16', items: '3x Bluetooth Speaker', total: 239.97, status: 'shipped' }
-];
 
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('analytics'); // analytics, inventory, orders
@@ -56,14 +22,20 @@ export const AdminDashboard = () => {
   const [dbError, setDbError] = useState(null);
 
   // Stats Counters state
-  const [kpiRevenue, setKpiRevenue] = useState(177200.00);
-  const [kpiPieces, setKpiPieces] = useState(1420);
-  const [kpiRating, setKpiRating] = useState(4.6);
+  const [kpiRevenue, setKpiRevenue] = useState(0);
+  const [kpiPieces, setKpiPieces] = useState(0);
+  const [kpiRating, setKpiRating] = useState(0);
 
   // Dynamic Chart States
-  const [revenueChart, setRevenueChart] = useState(initialRevenueData);
-  const [productSalesChart, setProductSalesChart] = useState(initialSalesByProductData);
-  const [satisfactionChart, setSatisfactionChart] = useState(initialSatisfactionData);
+  const [revenueChart, setRevenueChart] = useState([]);
+  const [productSalesChart, setProductSalesChart] = useState([]);
+  const [satisfactionChart, setSatisfactionChart] = useState([
+    { rating: '5 Stars', count: 0, color: '#10b981' },
+    { rating: '4 Stars', count: 0, color: '#0ea5e9' },
+    { rating: '3 Stars', count: 0, color: '#f59e0b' },
+    { rating: '2 Stars', count: 0, color: '#ec4899' },
+    { rating: '1 Star', count: 0, color: '#ef4444' }
+  ]);
 
   // Inventory & Orders states
   const [products, setProducts] = useState([]);
@@ -92,19 +64,19 @@ export const AdminDashboard = () => {
 
       if (prodError) throw prodError;
 
-      if (prodData && prodData.length > 0) {
+      if (prodData) {
         setProducts(prodData.map(p => ({
           id: p.id,
-          name: p.name,
+          name: p.title || p.name, // Support both schemas
           category: p.category || 'Audio',
-          price: parseFloat(p.price),
-          stock: p.stock ?? 10,
+          price: parseFloat(p.price) || 0,
+          stock: p.stock ?? 0,
           description: p.description || '',
           icon: p.image_url ? '' : '📦',
           image_url: p.image_url
         })));
       } else {
-        setProducts(MOCK_PRODUCTS);
+        setProducts([]);
       }
 
       // B. Fetch orders and sum totals
@@ -121,11 +93,11 @@ export const AdminDashboard = () => {
           client: o.user_id ? 'Authenticated Buyer' : 'Guest Customer',
           date: new Date(o.created_at).toISOString().split('T')[0],
           items: 'Store Checkout Transaction',
-          total: parseFloat(o.total_price),
+          total: parseFloat(o.total_price) || 0,
           status: o.status
         })));
 
-        const sumRev = ordersData.reduce((acc, o) => acc + parseFloat(o.total_price), 0);
+        const sumRev = ordersData.reduce((acc, o) => acc + (parseFloat(o.total_price) || 0), 0);
         setKpiRevenue(sumRev);
 
         // Group monthly orders for AreaChart
@@ -134,7 +106,7 @@ export const AdminDashboard = () => {
         ordersData.forEach(o => {
           const dateObj = new Date(o.created_at);
           const mName = months[dateObj.getMonth()];
-          monthlyGroups[mName] = (monthlyGroups[mName] || 0) + parseFloat(o.total_price);
+          monthlyGroups[mName] = (monthlyGroups[mName] || 0) + (parseFloat(o.total_price) || 0);
         });
 
         const newRevChart = Object.keys(monthlyGroups).map(k => ({
@@ -143,10 +115,37 @@ export const AdminDashboard = () => {
         }));
         if (newRevChart.length > 0) setRevenueChart(newRevChart);
       } else {
-        setOrders(INITIAL_ORDERS);
+        setOrders([]);
+        setKpiRevenue(0);
+        setRevenueChart([]);
       }
 
-      // C. Fetch reviews and compute averages
+      // C. Fetch order_items for sold pieces breakdown
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('quantity, products (title)');
+
+      if (!itemsError && itemsData) {
+        const productSales = {};
+        itemsData.forEach(item => {
+          const pName = item.products?.title || 'Electronics Gadget';
+          productSales[pName] = (productSales[pName] || 0) + (item.quantity || 0);
+        });
+
+        const newProductSalesChart = Object.keys(productSales).map(name => ({
+          name,
+          sold: productSales[name]
+        }));
+        setProductSalesChart(newProductSalesChart);
+
+        const totalPieces = itemsData.reduce((acc, item) => acc + (item.quantity || 0), 0);
+        setKpiPieces(totalPieces);
+      } else {
+        setProductSalesChart([]);
+        setKpiPieces(0);
+      }
+
+      // D. Fetch reviews and compute averages
       const { data: revData, error: revError } = await supabase
         .from('reviews')
         .select('rating');
@@ -164,21 +163,29 @@ export const AdminDashboard = () => {
         });
 
         const newSat = [
-          { rating: '5 Stars', count: Math.round((ratingCounts[5] / revData.length) * 100), color: '#10b981' },
-          { rating: '4 Stars', count: Math.round((ratingCounts[4] / revData.length) * 100), color: '#0ea5e9' },
-          { rating: '3 Stars', count: Math.round((ratingCounts[3] / revData.length) * 100), color: '#f59e0b' },
-          { rating: '2 Stars', count: Math.round((ratingCounts[2] / revData.length) * 100), color: '#ec4899' },
-          { rating: '1 Star', count: Math.round((ratingCounts[1] / revData.length) * 100), color: '#ef4444' }
+          { rating: '5 Stars', count: Math.round((ratingCounts[5] / revData.length) * 100) || 0, color: '#10b981' },
+          { rating: '4 Stars', count: Math.round((ratingCounts[4] / revData.length) * 100) || 0, color: '#0ea5e9' },
+          { rating: '3 Stars', count: Math.round((ratingCounts[3] / revData.length) * 100) || 0, color: '#f59e0b' },
+          { rating: '2 Stars', count: Math.round((ratingCounts[2] / revData.length) * 100) || 0, color: '#ec4899' },
+          { rating: '1 Star', count: Math.round((ratingCounts[1] / revData.length) * 100) || 0, color: '#ef4444' }
         ];
         setSatisfactionChart(newSat);
+      } else {
+        setKpiRating(0);
+        setSatisfactionChart([
+          { rating: '5 Stars', count: 0, color: '#10b981' },
+          { rating: '4 Stars', count: 0, color: '#0ea5e9' },
+          { rating: '3 Stars', count: 0, color: '#f59e0b' },
+          { rating: '2 Stars', count: 0, color: '#ec4899' },
+          { rating: '1 Star', count: 0, color: '#ef4444' }
+        ]);
       }
 
     } catch (err) {
-      console.warn('Supabase loading metrics failed, applying offline demonstration fallbacks:', err.message);
+      console.error('Supabase loading metrics failed:', err.message);
       setDbError(err.message);
-      // Fallback
-      setProducts(MOCK_PRODUCTS);
-      setOrders(INITIAL_ORDERS);
+      setProducts([]);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -217,67 +224,35 @@ export const AdminDashboard = () => {
       }
 
       // 2. Perform SQL database insertion/modification
-      const isDemoMode = dbError || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder');
+      const payload = {
+        title: prodName,
+        category: prodCat,
+        price: parseFloat(prodPrice),
+        stock: parseInt(prodStock),
+        description: prodDesc,
+        image_url: uploadedImageUrl || (editingProduct ? editingProduct.image_url : null)
+      };
 
-      if (isDemoMode) {
-        // Fallback mockup local insertion
-        if (editingProduct) {
-          setProducts(prev => prev.map(p => 
-            p.id === editingProduct.id 
-              ? { ...p, name: prodName, category: prodCat, price: parseFloat(prodPrice), stock: parseInt(prodStock), description: prodDesc }
-              : p
-          ));
-          setEditingProduct(null);
-        } else {
-          const newMockItem = {
-            id: `mock-${Date.now()}`,
-            name: prodName,
-            category: prodCat,
-            price: parseFloat(prodPrice),
-            stock: parseInt(prodStock),
-            description: prodDesc,
-            imageGradient: 'linear-gradient(135deg, #a855f7, #6366f1)',
-            icon: '📦'
-          };
-          setProducts(prev => [newMockItem, ...prev]);
-        }
-        alert('Product saved locally (Simulated DB Insert)!');
+      if (editingProduct) {
+        const { error } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', editingProduct.id);
+
+        if (error) throw error;
+        alert('Database product updated successfully!');
+        setEditingProduct(null);
       } else {
-        // Live supabase connection insert
-        if (editingProduct) {
-          const { error } = await supabase
-            .from('products')
-            .update({
-              name: prodName,
-              category: prodCat,
-              price: parseFloat(prodPrice),
-              stock: parseInt(prodStock),
-              description: prodDesc,
-              image_url: uploadedImageUrl || editingProduct.image_url
-            })
-            .eq('id', editingProduct.id);
+        const { error } = await supabase
+          .from('products')
+          .insert(payload);
 
-          if (error) throw error;
-          alert('Database product updated successfully!');
-          setEditingProduct(null);
-        } else {
-          const { error } = await supabase
-            .from('products')
-            .insert({
-              name: prodName,
-              category: prodCat,
-              price: parseFloat(prodPrice),
-              stock: parseInt(prodStock),
-              description: prodDesc,
-              image_url: uploadedImageUrl || null
-            });
-
-          if (error) throw error;
-          alert('Database product created successfully (Live Bucket Upload completed)!');
-        }
-        // Reload state
-        await fetchLiveDatabaseMetrics();
+        if (error) throw error;
+        alert('Database product created successfully (Live Bucket Upload completed)!');
       }
+      
+      // Reload state
+      await fetchLiveDatabaseMetrics();
 
       // Reset
       setProdName('');
@@ -306,19 +281,14 @@ export const AdminDashboard = () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      if (dbError) {
-        setProducts(prev => prev.filter(p => p.id !== id));
-        alert('Removed product from local memory catalog.');
-      } else {
-        const { error } = await supabase
-          .from('products')
-          .delete()
-          .eq('id', id);
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
 
-        if (error) throw error;
-        alert('Successfully deleted product from Supabase table!');
-        await fetchLiveDatabaseMetrics();
-      }
+      if (error) throw error;
+      alert('Successfully deleted product from Supabase table!');
+      await fetchLiveDatabaseMetrics();
     } catch (err) {
       alert(`Delete Error: ${err.message}`);
     }
@@ -326,22 +296,18 @@ export const AdminDashboard = () => {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      if (dbError) {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      } else {
-        // Since order ID display is shortened in UI tables, find full uuid match first
-        const { data: fullOrders } = await supabase.from('orders').select('id');
-        const match = fullOrders.find(fo => fo.id.substring(0, 8).toUpperCase() === orderId);
-        
-        if (match) {
-          const { error } = await supabase
-            .from('orders')
-            .update({ status: newStatus })
-            .eq('id', match.id);
+      // Since order ID display is shortened in UI tables, find full uuid match first
+      const { data: fullOrders } = await supabase.from('orders').select('id');
+      const match = fullOrders?.find(fo => fo.id.substring(0, 8).toUpperCase() === orderId);
+      
+      if (match) {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('id', match.id);
 
-          if (error) throw error;
-          alert('Fulfillment status updated inside database!');
-        }
+        if (error) throw error;
+        alert('Fulfillment status updated inside database!');
       }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
@@ -403,7 +369,7 @@ export const AdminDashboard = () => {
                 <div className="analytics-grid">
                   <div className="card glass-card analytic-card">
                     <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-muted)' }}>TOTAL REVENUE</span>
-                    <span className="analytic-value">${kpiRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="analytic-value">{kpiRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DT</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)' }}>Processed transactional totals</span>
                   </div>
                   <div className="card glass-card analytic-card">
@@ -423,7 +389,7 @@ export const AdminDashboard = () => {
                   
                   {/* Chart 1: Revenue Trends */}
                   <div className="card glass-card" style={{ padding: '24px' }}>
-                    <h3 style={{ marginBottom: '18px', fontSize: '1.1rem' }}>📈 Revenue Progression (USD)</h3>
+                    <h3 style={{ marginBottom: '18px', fontSize: '1.1rem' }}>📈 Revenue Progression (DT)</h3>
                     <div style={{ width: '100%', height: '300px' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={revenueChart}>
@@ -530,7 +496,7 @@ export const AdminDashboard = () => {
                             <div>
                               <strong style={{ color: 'var(--text-h)', fontSize: '0.95rem', display: 'block' }}>{p.name}</strong>
                               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                ${p.price.toFixed(2)} | Stock: <strong style={{ color: 'var(--text-h)' }}>{p.stock}</strong>
+                                {p.price.toFixed(2)} DT | Stock: <strong style={{ color: 'var(--text-h)' }}>{p.stock}</strong>
                               </span>
                             </div>
                           </div>
@@ -582,7 +548,7 @@ export const AdminDashboard = () => {
                         </div>
 
                         <div className="form-group">
-                          <label className="form-label">Pricing (USD)</label>
+                          <label className="form-label">Pricing (DT)</label>
                           <input 
                             type="number" 
                             step="0.01"
@@ -678,7 +644,7 @@ export const AdminDashboard = () => {
                           <th>Order ID</th>
                           <th>Customer</th>
                           <th>Items Purchased</th>
-                          <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ textAlign: 'right' }}>Total (DT)</th>
                           <th style={{ textAlign: 'center' }}>Fulfillment Status</th>
                         </tr>
                       </thead>
@@ -692,7 +658,7 @@ export const AdminDashboard = () => {
                             <td>{o.client}</td>
                             <td style={{ fontSize: '0.85rem' }}>{o.items}</td>
                             <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--text-h)' }}>
-                              ${o.total.toFixed(2)}
+                              {o.total.toFixed(2)} DT
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               <select 

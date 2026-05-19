@@ -3,67 +3,6 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { useCart } from '../contexts/CartContext';
 
-// Outstanding mock product catalog to serve as database fallback
-export const MOCK_PRODUCTS = [
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    name: 'Aura Sound-Pro Headphones',
-    category: 'Audio',
-    price: 249.99,
-    rating: 4.8,
-    stock: 12,
-    description: 'Immersive sound isolating headphones with active noise cancellation and an outstanding 45-hour battery life.',
-    imageGradient: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-    icon: '🎧',
-    reviews: [
-      { id: 'r1', user: 'Sarah L.', rating: 5, text: 'Absolutely love these! Best sound isolating headset I have ever owned.' },
-      { id: 'r2', user: 'James T.', rating: 4, text: 'Very comfortable, but charging cable is a bit short.' }
-    ]
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    name: 'Zenith OLED Smartwatch',
-    category: 'Wearables',
-    price: 189.99,
-    rating: 4.5,
-    stock: 8,
-    description: 'Track your vitals with medical grade precision on a vibrant high-definition AMOLED screen.',
-    imageGradient: 'linear-gradient(135deg, #ec4899, #f43f5e)',
-    icon: '⌚',
-    reviews: [
-      { id: 'r3', user: 'Elena R.', rating: 5, text: 'Vibrant colors and very accurate sleep trackers.' }
-    ]
-  },
-  {
-    id: '33333333-3333-3333-3333-333333333333',
-    name: 'Horizon VR Elite Headset',
-    category: 'Electronics',
-    price: 499.99,
-    rating: 4.9,
-    stock: 5,
-    description: 'Experience true immersion with 4K resolution per eye, wide field of view, and adaptive hand controllers.',
-    imageGradient: 'linear-gradient(135deg, #8b5cf6, #d946ef)',
-    icon: '🥽',
-    reviews: [
-      { id: 'r4', user: 'Mark K.', rating: 5, text: 'Stunning display resolution! A revolution in VR.' }
-    ]
-  },
-  {
-    id: '44444444-4444-4444-4444-444444444444',
-    name: 'Prime Mechanical Keyboard',
-    category: 'Accessories',
-    price: 129.99,
-    rating: 4.7,
-    stock: 20,
-    description: 'Gasket-mounted customizable hot-swappable keyboard with tactile linear switches and solid aluminum chassis.',
-    imageGradient: 'linear-gradient(135deg, #f59e0b, #e11d48)',
-    icon: '⌨️',
-    reviews: [
-      { id: 'r5', user: 'Chao S.', rating: 5, text: 'The sounding profile is so creamy! Extremely solid typing feel.' }
-    ]
-  }
-];
-
 export const Home = () => {
   const { addItem } = useCart();
   const [products, setProducts] = useState([]);
@@ -89,35 +28,26 @@ export const Home = () => {
 
         if (error) throw error;
 
-        if (data && data.length > 0) {
-          // Dynamic mapping of records to visual properties
-          const mappedProducts = data.map(p => {
-            // Check if name matches any of our mock templates to preserve beautiful mock icons/gradients
-            const seedMatch = MOCK_PRODUCTS.find(mock => mock.name.toLowerCase() === p.name.toLowerCase());
-            return {
-              id: p.id,
-              name: p.name,
-              category: p.category || 'Electronics',
-              price: parseFloat(p.price),
-              stock: p.stock ?? 10,
-              description: p.description || 'Premium high-performance electronics and accessories.',
-              // Use Supabase URL, hosted bucket image, or fallback gradients
-              imageGradient: p.image_url 
-                ? `url(${p.image_url})` 
-                : (seedMatch?.imageGradient || 'linear-gradient(135deg, #6366f1, #d946ef)'),
-              icon: p.image_url ? '' : (seedMatch?.icon || '📦'),
-              rating: seedMatch?.rating || 4.5
-            };
-          });
+        if (data) {
+          const mappedProducts = data.map(p => ({
+            id: p.id,
+            name: p.title, // p.title is correct in the products table schema
+            category: p.category || 'Electronics',
+            price: parseFloat(p.price) || 0,
+            stock: p.stock ?? 0,
+            description: p.description || 'Premium high-performance electronics and accessories.',
+            imageGradient: p.image_url 
+              ? `url(${p.image_url})` 
+              : 'linear-gradient(135deg, #6366f1, #d946ef)',
+            icon: p.image_url ? '' : '📦',
+            rating: 4.5
+          }));
           setProducts(mappedProducts);
-        } else {
-          // If no rows, load static starter seeding
-          setProducts(MOCK_PRODUCTS);
         }
       } catch (err) {
-        console.warn('Supabase products fetch failed, using fallback mocks:', err.message);
+        console.error('Supabase products fetch failed:', err.message);
         setDbError(err.message);
-        setProducts(MOCK_PRODUCTS);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -295,7 +225,7 @@ export const Home = () => {
                   <div>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>PRICE</span>
                     <span style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-h)' }}>
-                      ${product.price.toFixed(2)}
+                      {product.price.toFixed(2)} DT
                     </span>
                   </div>
 

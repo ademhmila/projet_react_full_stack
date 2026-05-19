@@ -84,7 +84,7 @@ export const Cart = () => {
               {/* Title & Price */}
               <div style={{ flex: '1', minWidth: '150px' }}>
                 <h3 style={{ fontSize: '1.05rem', color: 'var(--text-h)', marginBottom: '4px' }}>{item.name}</h3>
-                <span style={{ fontWeight: '700', color: 'var(--text-h)' }}>${item.price.toFixed(2)}</span>
+                <span style={{ fontWeight: '700', color: 'var(--text-h)' }}>{item.price.toFixed(2)} DT</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>
                   (Stock: {item.stock})
                 </span>
@@ -136,30 +136,30 @@ export const Cart = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem' }}>
                 <span>Subtotal ({cartItems.reduce((acc, i) => acc + i.quantity, 0)} items)</span>
-                <strong style={{ color: 'var(--text-h)' }}>${cartTotal.toFixed(2)}</strong>
+                <strong style={{ color: 'var(--text-h)' }}>{cartTotal.toFixed(2)} DT</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem' }}>
                 <span>Estimated Shipping</span>
                 <strong style={{ color: 'var(--text-h)' }}>
-                  {shipping === 0 ? <span style={{ color: 'var(--accent-green)' }}>FREE</span> : `$${shipping.toFixed(2)}`}
+                  {shipping === 0 ? <span style={{ color: 'var(--accent-green)' }}>FREE</span> : `${shipping.toFixed(2)} DT`}
                 </strong>
               </div>
 
               {shipping > 0 && (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '-8px' }}>
-                  💡 Add <strong>${(200 - cartTotal).toFixed(2)}</strong> more to get FREE SHIPPING!
+                  💡 Add <strong>{(200 - cartTotal).toFixed(2)} DT</strong> more to get FREE SHIPPING!
                 </div>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem' }}>
                 <span>Estimated Sales Tax (8%)</span>
-                <strong style={{ color: 'var(--text-h)' }}>${tax.toFixed(2)}</strong>
+                <strong style={{ color: 'var(--text-h)' }}>{tax.toFixed(2)} DT</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: '800', borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '6px', color: 'var(--text-h)' }}>
                 <span>Total Amount</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{total.toFixed(2)} DT</span>
               </div>
             </div>
 

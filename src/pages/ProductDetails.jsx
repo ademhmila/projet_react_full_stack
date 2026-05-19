@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
-import { MOCK_PRODUCTS } from './Home';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -39,19 +38,18 @@ export const ProductDetails = () => {
         if (prodError) throw prodError;
 
         if (prodData) {
-          const seedMatch = MOCK_PRODUCTS.find(mock => mock.name.toLowerCase() === prodData.name.toLowerCase());
           const mappedProduct = {
             id: prodData.id,
-            name: prodData.name,
+            name: prodData.name || prodData.title,
             category: prodData.category || 'Electronics',
-            price: parseFloat(prodData.price),
-            stock: prodData.stock ?? 10,
+            price: parseFloat(prodData.price) || 0,
+            stock: prodData.stock ?? 0,
             description: prodData.description || 'Premium high-performance tech hardware.',
             imageGradient: prodData.image_url 
               ? `url(${prodData.image_url})` 
-              : (seedMatch?.imageGradient || 'linear-gradient(135deg, #6366f1, #d946ef)'),
-            icon: prodData.image_url ? '' : (seedMatch?.icon || '📦'),
-            rating: seedMatch?.rating || 4.5
+              : 'linear-gradient(135deg, #6366f1, #d946ef)',
+            icon: prodData.image_url ? '' : '📦',
+            rating: 4.5
           };
           setProduct(mappedProduct);
         }
@@ -75,15 +73,10 @@ export const ProductDetails = () => {
         }
 
       } catch (err) {
-        console.warn('Supabase fetch failed, using fallback static detail view:', err.message);
+        console.error('Supabase fetch failed:', err.message);
         setDbError(err.message);
-        
-        // Static mock fallback
-        const mockMatch = MOCK_PRODUCTS.find(p => p.id === id);
-        if (mockMatch) {
-          setProduct(mockMatch);
-          setReviews(mockMatch.reviews || []);
-        }
+        setProduct(null);
+        setReviews([]);
       } finally {
         setLoading(false);
       }
@@ -119,40 +112,28 @@ export const ProductDetails = () => {
     const score = parseInt(reviewRating);
 
     try {
-      if (dbError) {
-        // If in offline fallback, append local review array
-        const newLocalRev = {
-          id: `r-local-${Date.now()}`,
-          user: reviewName || 'Guest User',
+      // Live database submission to Supabase
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert({
+          product_id: id,
+          user_id: user?.id || null, // null if guest
           rating: score,
-          text: reviewText
-        };
-        setReviews(prev => [newLocalRev, ...prev]);
-        setReviewSuccess(true);
-      } else {
-        // Live database submission to Supabase
-        const { data, error } = await supabase
-          .from('reviews')
-          .insert({
-            product_id: id,
-            user_id: user?.id || null, // null if guest
-            rating: score,
-            comment: reviewText
-          })
-          .select();
+          comment: reviewText
+        })
+        .select();
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Add dynamically to local array
-        setReviews(prev => [{
-          id: data?.[0]?.id || `r-live-${Date.now()}`,
-          user: reviewName || (user ? 'Verified Customer' : 'Guest Buyer'),
-          rating: score,
-          text: reviewText
-        }, ...prev]);
+      // Add dynamically to local array
+      setReviews(prev => [{
+        id: data?.[0]?.id || `r-live-${Date.now()}`,
+        user: reviewName || (user ? 'Verified Customer' : 'Guest Buyer'),
+        rating: score,
+        text: reviewText
+      }, ...prev]);
 
-        setReviewSuccess(true);
-      }
+      setReviewSuccess(true);
 
       // Reset fields
       setReviewName('');
@@ -258,7 +239,7 @@ export const ProductDetails = () => {
             <div>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>RETAIL PRICE</span>
               <span style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-h)' }}>
-                ${product.price.toFixed(2)}
+                {product.price.toFixed(2)} DT
               </span>
             </div>
             <div>

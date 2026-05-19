@@ -33,79 +33,51 @@ export const Invoice = () => {
     setSubmitting(true);
     setCheckoutError('');
 
-    const generatedOrderId = `AURA-${Math.floor(100000 + Math.random() * 900000)}-${new Date().getFullYear()}`;
     const orderDate = new Date().toLocaleString();
 
     try {
       // 1. Live Supabase database checkout insertion
-      const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder');
-      
-      if (isDemoMode || user?.id?.includes('demo')) {
-        // Fallback for demo environments
-        setInvoiceDetails({
-          orderId: generatedOrderId,
-          orderDate,
-          customer: { fullName, address, city, zip, email: user?.email || 'guest@example.com' },
-          items: [...cartItems],
-          billing: { subtotal: cartTotal, shipping, tax, total, payment }
-        });
-        setIsOrdered(true);
-        clearCart();
-      } else {
-        // A. Insert parent row in orders table
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            user_id: user?.id || null, // null if guest
-            status: 'pending',
-            total_price: total
-          })
-          .select();
+      // A. Insert parent row in orders table
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user?.id || null, // null if guest
+          status: 'pending',
+          total_price: total
+        })
+        .select();
 
-        if (orderError) throw orderError;
-        const liveOrderId = orderData[0].id;
+      if (orderError) throw orderError;
+      const liveOrderId = orderData[0].id;
 
-        // B. Insert child items in order_items table
-        const orderItemsPayload = cartItems.map(item => ({
-          order_id: liveOrderId,
-          product_id: (item.id.includes('1111') || item.id.includes('2222') || item.id.includes('3333') || item.id.includes('4444'))
-            ? item.id  // Valid seeded UUID
-            : null,    // Null if temporary mock product
-          quantity: item.quantity,
-          price_at_purchase: item.price
-        }));
+      // B. Insert child items in order_items table
+      const orderItemsPayload = cartItems.map(item => ({
+        order_id: liveOrderId,
+        product_id: item.id,
+        quantity: item.quantity,
+        price_at_purchase: item.price
+      }));
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItemsPayload);
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsPayload);
 
-        if (itemsError) throw itemsError;
+      if (itemsError) throw itemsError;
 
-        // C. Populate invoice parameters on success
-        setInvoiceDetails({
-          orderId: liveOrderId,
-          orderDate,
-          customer: { fullName, address, city, zip, email: user?.email || 'guest@example.com' },
-          items: [...cartItems],
-          billing: { subtotal: cartTotal, shipping, tax, total, payment }
-        });
-
-        setIsOrdered(true);
-        clearCart();
-      }
-    } catch (err) {
-      console.warn('Supabase checkout transaction failed, processing in demo mode:', err.message);
-      
-      // Automatic backup processor
+      // C. Populate invoice parameters on success
       setInvoiceDetails({
-        orderId: generatedOrderId,
+        orderId: liveOrderId,
         orderDate,
         customer: { fullName, address, city, zip, email: user?.email || 'guest@example.com' },
         items: [...cartItems],
         billing: { subtotal: cartTotal, shipping, tax, total, payment }
       });
+
       setIsOrdered(true);
       clearCart();
+    } catch (err) {
+      console.error('Supabase checkout transaction failed:', err.message);
+      setCheckoutError(err.message || 'Error processing checkout invoice details.');
     } finally {
       setSubmitting(false);
     }
@@ -209,10 +181,10 @@ export const Invoice = () => {
                     <td>
                       <strong style={{ color: 'var(--text-h)' }}>{item.name}</strong>
                     </td>
-                    <td style={{ textAlign: 'right' }}>${item.price.toFixed(2)}</td>
+                    <td style={{ textAlign: 'right' }}>{item.price.toFixed(2)} DT</td>
                     <td style={{ textAlign: 'center' }}>{item.quantity}</td>
                     <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {(item.price * item.quantity).toFixed(2)} DT
                     </td>
                   </tr>
                 ))}
@@ -225,17 +197,17 @@ export const Invoice = () => {
             <div style={{ width: '100%', maxWidth: '300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                 <span>Subtotal</span>
-                <strong>${invoiceDetails.billing.subtotal.toFixed(2)}</strong>
+                <strong>{invoiceDetails.billing.subtotal.toFixed(2)} DT</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                 <span>Shipping Fee</span>
                 <strong>
-                  {invoiceDetails.billing.shipping === 0 ? 'FREE' : `$${invoiceDetails.billing.shipping.toFixed(2)}`}
+                  {invoiceDetails.billing.shipping === 0 ? 'FREE' : `${invoiceDetails.billing.shipping.toFixed(2)} DT`}
                 </strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                 <span>Sales Tax (8%)</span>
-                <strong>${invoiceDetails.billing.tax.toFixed(2)}</strong>
+                <strong>{invoiceDetails.billing.tax.toFixed(2)} DT</strong>
               </div>
               <div style={{ 
                 display: 'flex', 
@@ -248,7 +220,7 @@ export const Invoice = () => {
                 marginTop: '6px' 
               }}>
                 <span>Paid via {invoiceDetails.billing.payment}</span>
-                <span>${invoiceDetails.billing.total.toFixed(2)}</span>
+                <span>{invoiceDetails.billing.total.toFixed(2)} DT</span>
               </div>
             </div>
           </div>
@@ -359,7 +331,7 @@ export const Invoice = () => {
               style={{ width: '100%', padding: '12px', fontSize: '1rem', marginTop: '10px' }}
               disabled={submitting}
             >
-              {submitting ? 'Processing Transaction...' : `📝 Finalize & Place Order ($${total.toFixed(2)})`}
+              {submitting ? 'Processing Transaction...' : `📝 Finalize & Place Order (${total.toFixed(2)} DT)`}
             </button>
           </form>
 
@@ -376,7 +348,7 @@ export const Invoice = () => {
                     <strong style={{ color: 'var(--text-h)' }}>{item.quantity}x</strong> {item.name}
                   </span>
                   <span style={{ color: 'var(--text-h)', fontWeight: '600' }}>
-                    ${(item.price * item.quantity).toFixed(2)}
+                    {(item.price * item.quantity).toFixed(2)} DT
                   </span>
                 </div>
               ))}
@@ -385,15 +357,15 @@ export const Invoice = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.88rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Subtotal</span>
-                <span>${cartTotal.toFixed(2)}</span>
+                <span>{cartTotal.toFixed(2)} DT</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Est. Shipping</span>
-                <span>{shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`}</span>
+                <span>{shipping === 0 ? 'FREE' : `${shipping.toFixed(2)} DT`}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Est. Sales Tax (8%)</span>
-                <span>${tax.toFixed(2)}</span>
+                <span>{tax.toFixed(2)} DT</span>
               </div>
               <div style={{ 
                 display: 'flex', 
@@ -406,7 +378,7 @@ export const Invoice = () => {
                 marginTop: '6px' 
               }}>
                 <span>Grand Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{total.toFixed(2)} DT</span>
               </div>
             </div>
           </div>

@@ -8,6 +8,23 @@ export const Navbar = () => {
   const { cartCount } = useCart();
   const navigate = useNavigate();
 
+  const [theme, setTheme] = React.useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
+
+  React.useEffect(() => {
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate('/login');
@@ -55,9 +72,32 @@ export const Navbar = () => {
           </ul>
         </nav>
 
-        <div className="nav-actions">
+        <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button 
+            onClick={toggleTheme} 
+            className="btn btn-secondary" 
+            style={{ 
+              padding: '0', 
+              borderRadius: '50%', 
+              width: '36px', 
+              height: '36px', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              border: '1px solid var(--border)', 
+              backgroundColor: 'var(--bg-glass)',
+              cursor: 'pointer',
+              fontSize: '1.05rem',
+              transition: 'var(--transition)'
+            }}
+            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+
           {user ? (
-            <div style={{ display: 'flex', alignPage: 'center', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Hello, <strong style={{ color: 'var(--text-h)' }}>{profile?.full_name || user.email}</strong>
               </span>
