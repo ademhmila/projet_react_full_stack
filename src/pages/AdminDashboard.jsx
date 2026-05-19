@@ -344,13 +344,19 @@ export const AdminDashboard = () => {
 
       {/* Main Panel Content */}
       <main className="admin-main">
-        {dbError && (
-          <div style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.12)', color: 'var(--accent-yellow)', marginBottom: '16px', textAlign: 'center' }}>
-            ⚠️ Demo Mode Enabled: Showing cached and static chart counters. Sync real DB tables to verify live pipelines.
+        {dbError ? (
+          <div className="card glass-card" style={{ padding: '30px', maxWidth: '650px', margin: '20px auto', textAlign: 'center', border: '1px solid var(--accent-red)' }}>
+            <span style={{ fontSize: '2.5rem' }}>🔌</span>
+            <h3 style={{ marginTop: '12px', color: 'var(--text-h)', fontSize: '1.25rem' }}>Database Offline - Metrics Locked</h3>
+            <p style={{ color: 'var(--text)', marginTop: '8px', lineHeight: '1.5', fontSize: '0.88rem' }}>
+              We failed to query live database metrics:
+              <code style={{ display: 'block', backgroundColor: 'var(--bg-app)', padding: '8px', borderRadius: '6px', margin: '10px 0', fontSize: '0.78rem', color: 'var(--accent-red)', border: '1px solid var(--border)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                {dbError}
+              </code>
+              Please configure your <strong style={{ color: 'var(--text-h)' }}>.env</strong> connection credentials to fully enable your administrator inventory metrics and charts.
+            </p>
           </div>
-        )}
-
-        {loading ? (
+        ) : loading ? (
           <div className="flex-center" style={{ minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
             <div className="spinner"></div>
             <p>Syncing live charts and storage indices...</p>

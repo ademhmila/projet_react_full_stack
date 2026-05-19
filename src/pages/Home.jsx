@@ -154,7 +154,28 @@ export const Home = () => {
         <span>🔥</span> Trending Hardware ({filteredProducts.length})
       </h2>
       
-      {loading ? (
+      {dbError ? (
+        <div className="card glass-card" style={{ padding: '40px', maxWidth: '650px', margin: '40px auto', textAlign: 'center', border: '1px solid var(--accent-red)' }}>
+          <span style={{ fontSize: '3rem' }}>🔌</span>
+          <h3 style={{ marginTop: '16px', color: 'var(--text-h)', fontSize: '1.4rem' }}>Supabase Database Offline</h3>
+          <p style={{ color: 'var(--text)', marginTop: '12px', lineHeight: '1.6', fontSize: '0.92rem' }}>
+            We failed to establish a connection to your Supabase host:
+            <code style={{ display: 'block', backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '6px', margin: '12px 0', fontSize: '0.8rem', color: 'var(--accent-red)', border: '1px solid var(--border)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+              {dbError}
+            </code>
+            This is because the environment variables in your <strong style={{ color: 'var(--text-h)' }}>.env</strong> file are still set to placeholders or the network is unreachable.
+          </p>
+          <div style={{ textAlign: 'left', marginTop: '24px', backgroundColor: 'var(--bg-app)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+            <h4 style={{ margin: '0 0 10px', fontSize: '0.95rem', color: 'var(--text-h)' }}>💡 Quick Setup Guide:</h4>
+            <ol style={{ margin: '0', paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <li>Open your local <strong style={{ color: 'var(--text-h)' }}>.env</strong> file in the project root.</li>
+              <li>Replace the placeholder <code style={{color: 'var(--primary)'}}>VITE_SUPABASE_URL</code> with your actual Supabase Project URL.</li>
+              <li>Replace <code style={{color: 'var(--primary)'}}>VITE_SUPABASE_ANON_KEY</code> with your project's public anon key.</li>
+              <li>Restart your development server (<code style={{color: 'var(--text-h)'}}>npm run dev</code>).</li>
+            </ol>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="flex-center" style={{ minHeight: '30vh', flexDirection: 'column', gap: '16px' }}>
           <div className="spinner"></div>
           <p>Querying products table...</p>
