@@ -15,6 +15,7 @@ import {
   Cell 
 } from 'recharts';
 import { supabase } from '../api/supabaseClient';
+import { DEMO_PRODUCTS, DEMO_ORDERS } from '../data/demoProducts';
 
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('analytics'); // analytics, inventory, orders
@@ -182,10 +183,56 @@ export const AdminDashboard = () => {
       }
 
     } catch (err) {
-      console.error('Supabase loading metrics failed:', err.message);
+      console.warn('Supabase loading metrics failed, enabling offline fallbacks:', err.message);
       setDbError(err.message);
-      setProducts([]);
-      setOrders([]);
+      
+      // Load full demo products
+      setProducts(DEMO_PRODUCTS.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        stock: p.stock,
+        description: p.description,
+        icon: p.icon || '📦',
+        image_url: null
+      })));
+
+      // Load full demo orders
+      setOrders(DEMO_ORDERS);
+
+      // Aggregate revenue and pieces
+      const sumRev = DEMO_ORDERS.reduce((acc, o) => acc + o.total, 0);
+      setKpiRevenue(sumRev);
+      setKpiPieces(7);
+      setKpiRating(4.7);
+
+      // Demo Revenue Chart
+      setRevenueChart([
+        { month: 'Jan', revenue: 400 },
+        { month: 'Feb', revenue: 600 },
+        { month: 'Mar', revenue: 950 },
+        { month: 'Apr', revenue: 1450 },
+        { month: 'May', revenue: sumRev }
+      ]);
+
+      // Demo Product Sales Chart
+      setProductSalesChart([
+        { name: 'Aura Pro Headphones', sold: 2 },
+        { name: 'Quantum Smartwatch X', sold: 1 },
+        { name: 'VisionX AR Glasses', sold: 1 },
+        { name: 'MechForce Keyboard', sold: 1 },
+        { name: 'AeroFit Pro Band', sold: 2 }
+      ]);
+
+      // Demo Satisfaction Chart
+      setSatisfactionChart([
+        { rating: '5 Stars', count: 70, color: '#10b981' },
+        { rating: '4 Stars', count: 20, color: '#0ea5e9' },
+        { rating: '3 Stars', count: 10, color: '#f59e0b' },
+        { rating: '2 Stars', count: 0, color: '#ec4899' },
+        { rating: '1 Star', count: 0, color: '#ef4444' }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -254,15 +301,34 @@ export const AdminDashboard = () => {
       // Reload state
       await fetchLiveDatabaseMetrics();
 
-      // Reset
+    } catch (err) {
+      console.warn('Supabase product submit failed, updating locally:', err.message);
+      const mockId = editingProduct ? editingProduct.id : `demo-${Date.now()}`;
+      const payload = {
+        id: mockId,
+        name: prodName,
+        category: prodCat,
+        price: parseFloat(prodPrice) || 0,
+        stock: parseInt(prodStock) || 0,
+        description: prodDesc,
+        icon: '📦',
+        image_url: editingProduct ? editingProduct.image_url : null
+      };
+
+      if (editingProduct) {
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? payload : p));
+        alert('Offline Fallback: Product updated locally!');
+        setEditingProduct(null);
+      } else {
+        setProducts(prev => [payload, ...prev]);
+        alert('Offline Fallback: Product created locally!');
+      }
+
       setProdName('');
       setProdPrice('');
       setProdStock('');
       setProdDesc('');
       setSelectedImage(null);
-    } catch (err) {
-      console.error('Error inserting product details:', err.message);
-      alert(`Operation Failed: ${err.message}`);
     } finally {
       setImageUploading(false);
     }
@@ -290,7 +356,9 @@ export const AdminDashboard = () => {
       alert('Successfully deleted product from Supabase table!');
       await fetchLiveDatabaseMetrics();
     } catch (err) {
-      alert(`Delete Error: ${err.message}`);
+      console.warn('Supabase delete failed, removing locally:', err.message);
+      setProducts(prev => prev.filter(p => p.id !== id));
+      alert('Offline Fallback: Product deleted locally!');
     }
   };
 
@@ -344,19 +412,13 @@ export const AdminDashboard = () => {
 
       {/* Main Panel Content */}
       <main className="admin-main">
-        {dbError ? (
-          <div className="card glass-card" style={{ padding: '30px', maxWidth: '650px', margin: '20px auto', textAlign: 'center', border: '1px solid var(--accent-red)' }}>
-            <span style={{ fontSize: '2.5rem' }}>🔌</span>
-            <h3 style={{ marginTop: '12px', color: 'var(--text-h)', fontSize: '1.25rem' }}>Database Offline - Metrics Locked</h3>
-            <p style={{ color: 'var(--text)', marginTop: '8px', lineHeight: '1.5', fontSize: '0.88rem' }}>
-              We failed to query live database metrics:
-              <code style={{ display: 'block', backgroundColor: 'var(--bg-app)', padding: '8px', borderRadius: '6px', margin: '10px 0', fontSize: '0.78rem', color: 'var(--accent-red)', border: '1px solid var(--border)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                {dbError}
-              </code>
-              Please configure your <strong style={{ color: 'var(--text-h)' }}>.env</strong> connection credentials to fully enable your administrator inventory metrics and charts.
-            </p>
+        {dbError && (
+          <div style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.12)', color: 'var(--accent-yellow)', marginBottom: '16px', textAlign: 'center' }}>
+            ⚠️ Local Mocks Active: Set VITE_SUPABASE_URL and run DDL script to sync live tables.
           </div>
-        ) : loading ? (
+        )}
+
+        {loading ? (
           <div className="flex-center" style={{ minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
             <div className="spinner"></div>
             <p>Syncing live charts and storage indices...</p>
